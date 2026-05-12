@@ -4,28 +4,38 @@ import java.util.Scanner;
 
 public class App {
     public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
+        Scanner scanner = new Scanner(System.in);
 
-        // 1. Membaca jumlah data (N)
-        // Ini penting agar sistem otomatis bisa mulai membaca input
-        if (!sc.hasNextInt()) {
-            sc.close();
-            return;
-        }
-        int n = sc.nextInt();
+        // Baca N dan M
+        int N = scanner.nextInt();
+        int M = scanner.nextInt();
 
-        // 2. Membaca N buah angka memori
-        int[] data = new int[n];
-        for (int i = 0; i < n; i++) {
-            if (sc.hasNextInt()) {
-                data[i] = sc.nextInt();
-            }
+        // Baca kode node
+        String[] codes = new String[N];
+        for (int i = 0; i < N; i++) {
+            codes[i] = scanner.next();
         }
 
-        // 3. Mengirim data ke Program.java
-        // Di sinilah App.java memanggil fungsi 'solve' yang akan dikerjakan penjawab
-        Program.solve(n, data);
+        // Baca edges: u v w (0-indexed)
+        int[][] edges = new int[M][3];
+        for (int i = 0; i < M; i++) {
+            edges[i][0] = scanner.nextInt();
+            edges[i][1] = scanner.nextInt();
+            edges[i][2] = scanner.nextInt();
+        }
 
-        sc.close();
+        // Baca query
+        int Q = scanner.nextInt();
+        String[][] queries = new String[Q][2];
+        for (int i = 0; i < Q; i++) {
+            queries[i][0] = scanner.next();
+            queries[i][1] = scanner.next();
+        }
+
+        scanner.close();
+
+        // Jalankan semua fase melalui Program
+        Program program = new Program(N, M, codes, edges, Q, queries);
+        program.solve();
     }
 }

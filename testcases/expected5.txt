@@ -1,0 +1,16 @@
+NO NEGATIVE CYCLE
+root: 0
+n1: 3
+n2: 5
+n3: 1
+n4: 5
+n5: 10
+n6: INF
+DIAMETER: 4
+CENTROIDS: 0
+LEVEL 0: root
+LEVEL 2: n5
+PRIME: 2
+PRIME: 7
+PRIME: 13
+PRIME: 7

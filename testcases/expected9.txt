@@ -1,0 +1,13 @@
+NO NEGATIVE CYCLE
+one: 0
+two: 10
+three: 10
+four: 20
+five: 30
+DIAMETER: 4
+CENTROIDS: 0
+LEVEL 0: one
+LEVEL 2: four
+TRIVIAL: 0
+COMPOSITE: 30
+COMPOSITE: 20

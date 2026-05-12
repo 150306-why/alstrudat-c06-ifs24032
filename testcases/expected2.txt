@@ -1,2 +1,1 @@
-Name: Abdullah Ubaid
-Age: 22
+NEGATIVE CYCLE DETECTED

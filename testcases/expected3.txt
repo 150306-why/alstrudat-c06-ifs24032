@@ -1,0 +1,16 @@
+NO NEGATIVE CYCLE
+src: 0
+nodeA: 2
+nodeB: 7
+nodeC: 4
+nodeD: -2
+nodeE: INF
+DIAMETER: 4
+CENTROIDS: 0
+LEVEL 0: src
+LEVEL 2: nodeC
+LEVEL 4: nodeD
+TRIVIAL: 1
+TRIVIAL: -1
+TRIVIAL: -8
+TRIVIAL: -4

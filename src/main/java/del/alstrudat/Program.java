@@ -1,283 +1,292 @@
 package del.alstrudat;
+
 import java.util.*;
 
 public class Program {
-    // Gunakan nilai besar untuk Infinity, dibagi 2 agar tidak overflow saat penjumlahan
-    static final int INF = Integer.MAX_VALUE / 2;
 
-    static class Edge {
-        int u, v, w;
-        Edge(int u, int v, int w) {
-            this.u = u;
-            this.v = v;
-            this.w = w;
-        }
+    private int N, M, Q;
+    private String[] codes;
+    private int[][] edges;
+    private String[][] queries;
+
+    public Program(int N, int M, String[] codes, int[][] edges, int Q, String[][] queries) {
+        this.N = N;
+        this.M = M;
+        this.codes = codes;
+        this.edges = edges;
+        this.Q = Q;
+        this.queries = queries;
     }
 
-    // Ubah nama method ini menjadi run() jika App.java memanggil Program.run()
-    public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-        if (!sc.hasNextInt()) return;
+    // -------------------------------------------------------------------------
+    // ENTRY POINT
+    // -------------------------------------------------------------------------
+    public void solve() {
+        final long INF = Long.MAX_VALUE / 2;
 
-        int N = sc.nextInt();
-        int M = sc.nextInt();
-
-        String[] codes = new String[N];
-        Map<String, Integer> codeToIndex = new HashMap<>();
-        for (int i = 0; i < N; i++) {
-            codes[i] = sc.next();
-            codeToIndex.put(codes[i], i);
-        }
-
-        List<Edge> edges = new ArrayList<>();
-        for (int i = 0; i < M; i++) {
-            String uStr = sc.next();
-            String vStr = sc.next();
-            int w = sc.nextInt();
-            edges.add(new Edge(codeToIndex.get(uStr), codeToIndex.get(vStr), w));
-        }
-
-        // ==========================================
-        // FASE 1 & 2: Bellman-Ford & Negative Cycle
-        // ==========================================
-        int[] dist = new int[N];
-        int[] parent = new int[N];
+        // =====================================================================
+        // FASE 1 & 2 : Bellman-Ford dari node 0
+        // =====================================================================
+        long[] dist = new long[N];
         Arrays.fill(dist, INF);
-        Arrays.fill(parent, -1);
-        dist[0] = 0; // Source selalu node 0
+        dist[0] = 0;
 
-        // Relax edges N-1 kali
-        for (int i = 0; i < N - 1; i++) {
-            for (Edge e : edges) {
-                if (dist[e.u] == INF) continue;
-                
-                if (dist[e.u] + e.w < dist[e.v]) {
-                    dist[e.v] = dist[e.u] + e.w;
-                    parent[e.v] = e.u;
-                } 
-                // Tie-breaker: pilih parent dengan indeks lebih kecil
-                else if (dist[e.u] + e.w == dist[e.v]) {
-                    if (e.u < parent[e.v] || parent[e.v] == -1) {
-                        parent[e.v] = e.u;
+        // N-1 iterasi relaksasi
+        for (int iter = 0; iter < N - 1; iter++) {
+            boolean updated = false;
+            for (int[] edge : edges) {
+                int u = edge[0], v = edge[1];
+                long w = edge[2];
+                if (dist[u] != INF && dist[u] + w < dist[v]) {
+                    dist[v] = dist[u] + w;
+                    updated = true;
+                }
+            }
+            if (!updated) break;
+        }
+
+        // --- FASE 1 : Deteksi negative cycle ---
+        boolean negCycle = false;
+        for (int[] edge : edges) {
+            int u = edge[0], v = edge[1];
+            long w = edge[2];
+            if (dist[u] != INF && dist[u] + w < dist[v]) {
+                negCycle = true;
+                break;
+            }
+        }
+
+        if (negCycle) {
+            System.out.println("NEGATIVE CYCLE DETECTED");
+            return;
+        }
+        System.out.println("NO NEGATIVE CYCLE");
+
+        // --- FASE 2 : Cetak jarak Bellman-Ford ---
+        for (int i = 0; i < N; i++) {
+            System.out.println(codes[i] + ": " + (dist[i] == INF ? "INF" : dist[i]));
+        }
+
+        // =====================================================================
+        // Bangun SPT
+        // =====================================================================
+        // Untuk setiap node v, cari parent dengan indeks terkecil
+        // di antara semua edge (u,v) yang merealisasikan jarak terpendek.
+        int[] parent = new int[N];
+        Arrays.fill(parent, -1);
+        for (int v = 1; v < N; v++) {
+            if (dist[v] == INF) continue;
+            for (int[] edge : edges) {
+                int u = edge[0], ev = edge[1];
+                long w = edge[2];
+                if (ev == v && dist[u] != INF && dist[u] + w == dist[v]) {
+                    if (parent[v] == -1 || u < parent[v]) {
+                        parent[v] = u;
                     }
                 }
             }
         }
 
-        // Deteksi Siklus Negatif (hanya yang bisa dijangkau dari source)
-        boolean hasNegativeCycle = false;
-        for (Edge e : edges) {
-            if (dist[e.u] == INF) continue;
-            if (dist[e.u] + e.w < dist[e.v]) {
-                hasNegativeCycle = true;
-                break;
-            }
-        }
+        // children list (directed: parent -> child)
+        List<List<Integer>> children = new ArrayList<>();
+        for (int i = 0; i < N; i++) children.add(new ArrayList<>());
 
-        if (hasNegativeCycle) {
-            System.out.println("NEGATIVE CYCLE DETECTED");
-            return; // Hentikan program
-        } else {
-            System.out.println("NO NEGATIVE CYCLE");
-        }
-
-        // Cetak jarak (Fase 2)
-        for (int i = 0; i < N; i++) {
-            // Asumsi format jarak dari source ke i
-            System.out.println(codes[i] + ": " + (dist[i] == INF ? "INF" : dist[i]));
-        }
-
-        // ==========================================
-        // FASE 3: Konstruksi Shortest Path Tree (SPT)
-        // ==========================================
-        List<Integer>[] treeAdj = new ArrayList[N]; // Undirected untuk Diameter & Centroid
-        List<Integer>[] directedTree = new ArrayList[N]; // Directed untuk Level-Order
-        for (int i = 0; i < N; i++) {
-            treeAdj[i] = new ArrayList<>();
-            directedTree[i] = new ArrayList<>();
-        }
-
-        int treeSize = 0;
-        boolean[] inTree = new boolean[N];
-        for (int i = 0; i < N; i++) {
+        List<Integer> sptNodes = new ArrayList<>();
+        sptNodes.add(0);
+        for (int i = 1; i < N; i++) {
             if (dist[i] != INF) {
-                inTree[i] = true;
-                treeSize++;
+                sptNodes.add(i);
                 if (parent[i] != -1) {
-                    treeAdj[parent[i]].add(i);
-                    treeAdj[i].add(parent[i]);
-                    directedTree[parent[i]].add(i);
+                    children.get(parent[i]).add(i);
                 }
             }
         }
+        int sptSize = sptNodes.size();
 
-        // Fase 3a: Diameter SPT (Menggunakan 2x BFS)
-        int[] pass1 = bfs(0, N, treeAdj, inTree);
-        int[] pass2 = bfs(pass1[0], N, treeAdj, inTree);
-        System.out.println("DIAMETER: " + pass2[1]);
+        // Undirected adjacency untuk diameter
+        List<List<Integer>> undir = new ArrayList<>();
+        for (int i = 0; i < N; i++) undir.add(new ArrayList<>());
+        for (int p = 0; p < N; p++) {
+            for (int c : children.get(p)) {
+                undir.get(p).add(c);
+                undir.get(c).add(p);
+            }
+        }
 
-        // Fase 3b: Centroid Decomposition Count
+        // =====================================================================
+        // FASE 3a : Diameter SPT
+        // =====================================================================
+        int diameter = 0;
+        if (sptSize > 1) {
+            // BFS dari root → temukan ujung terjauh
+            int[] d1 = bfsUndir(0, undir);
+            int far1 = 0;
+            for (int node : sptNodes) {
+                if (d1[node] > d1[far1]) far1 = node;
+            }
+            // BFS dari ujung terjauh → diameter
+            int[] d2 = bfsUndir(far1, undir);
+            for (int node : sptNodes) {
+                if (d2[node] > diameter) diameter = d2[node];
+            }
+        }
+        System.out.println("DIAMETER: " + diameter);
+
+        // =====================================================================
+        // FASE 3b : Centroid count
+        // =====================================================================
         int[] subtreeSize = new int[N];
-        int[] centroidCount = new int[1]; // Gunakan array sebagai referensi counter
-        dfsCentroid(0, -1, treeSize, treeAdj, subtreeSize, centroidCount);
-        System.out.println("CENTROIDS: " + centroidCount[0]);
+        computeSubtreeSize(0, children, subtreeSize);
 
-        // Fase 3c: Level-Order Traversal dengan Filter
+        int centroidCount = 0;
+        for (int v : sptNodes) {
+            int maxComp = sptSize - subtreeSize[v]; // komponen "atas"
+            for (int c : children.get(v)) {
+                if (subtreeSize[c] > maxComp) maxComp = subtreeSize[c];
+            }
+            if (maxComp <= N / 2) centroidCount++;
+        }
+        System.out.println("CENTROIDS: " + centroidCount);
+
+        // =====================================================================
+        // FASE 3c : Level-order traversal, level genap, dist genap
+        // =====================================================================
         int[] level = new int[N];
         Arrays.fill(level, -1);
-        Queue<Integer> q = new LinkedList<>();
-        q.add(0);
         level[0] = 0;
-        
-        while (!q.isEmpty()) {
-            int u = q.poll();
-            for (int v : directedTree[u]) {
-                level[v] = level[u] + 1;
-                q.add(v);
+        Queue<Integer> bfsQ = new LinkedList<>();
+        bfsQ.add(0);
+
+        // Pakai TreeMap agar level terurut ascending otomatis
+        Map<Integer, List<String>> evenLevels = new TreeMap<>();
+
+        while (!bfsQ.isEmpty()) {
+            int node = bfsQ.poll();
+            int lvl = level[node];
+
+            // Level genap DAN dist genap (termasuk bilangan negatif genap)
+            if (lvl % 2 == 0 && dist[node] % 2 == 0) {
+                evenLevels.computeIfAbsent(lvl, k -> new ArrayList<>()).add(codes[node]);
+            }
+
+            for (int child : children.get(node)) {
+                level[child] = lvl + 1;
+                bfsQ.add(child);
             }
         }
 
-        boolean printedAnyLevel = false;
-        for (int l = 0; l < N; l += 2) { // Hanya level genap (0, 2, 4...)
-            List<String> validNodes = new ArrayList<>();
-            for (int i = 0; i < N; i++) {
-                // Filter: level genap DAN dist genap
-                if (level[i] == l && dist[i] % 2 == 0 && inTree[i]) {
-                    validNodes.add(codes[i]);
-                }
-            }
-            if (!validNodes.isEmpty()) {
-                Collections.sort(validNodes); // Urutkan secara leksikografis
-                System.out.print("LEVEL " + l + ":");
-                for (String c : validNodes) System.out.print(" " + c);
-                System.out.println();
-                printedAnyLevel = true;
-            }
-        }
-        
-        if (!printedAnyLevel) {
+        if (evenLevels.isEmpty()) {
             System.out.println("NO EVEN LEVEL NODES");
+        } else {
+            for (Map.Entry<Integer, List<String>> entry : evenLevels.entrySet()) {
+                List<String> list = entry.getValue();
+                Collections.sort(list);
+                System.out.println("LEVEL " + entry.getKey() + ": " + String.join(" ", list));
+            }
         }
 
-        // ==========================================
-        // FASE 4: Query Lintasan Terkritis (LCA & XOR)
-        // ==========================================
-        int Q = sc.nextInt();
-        for (int i = 0; i < Q; i++) {
-            String uStr = sc.next();
-            String vStr = sc.next();
-            int uIdx = codeToIndex.get(uStr);
-            int vIdx = codeToIndex.get(vStr);
-
-            // Cari ancestor dari u
-            Set<Integer> uAncestors = new HashSet<>();
-            int curr = uIdx;
-            while (curr != -1) {
-                uAncestors.add(curr);
-                curr = parent[curr];
+        // =====================================================================
+        // FASE 4 : LCA queries
+        // =====================================================================
+        // Precompute depth dan ancestor untuk LCA naif
+        int[] depth = new int[N];
+        int[] lcaPar = new int[N];
+        Arrays.fill(depth, -1);
+        Arrays.fill(lcaPar, -1);
+        depth[0] = 0;
+        Queue<Integer> bfsQ2 = new LinkedList<>();
+        bfsQ2.add(0);
+        while (!bfsQ2.isEmpty()) {
+            int node = bfsQ2.poll();
+            for (int child : children.get(node)) {
+                depth[child] = depth[node] + 1;
+                lcaPar[child] = node;
+                bfsQ2.add(child);
             }
+        }
 
-            // Cari LCA dengan menelusuri dari v ke atas
-            curr = vIdx;
-            int lca = -1;
-            while (curr != -1) {
-                if (uAncestors.contains(curr)) {
-                    lca = curr;
-                    break;
-                }
-                curr = parent[curr];
-            }
+        // Map kode → indeks
+        Map<String, Integer> codeMap = new HashMap<>();
+        for (int i = 0; i < N; i++) codeMap.put(codes[i], i);
 
-            // Kumpulkan semua node dalam path (u -> lca -> v)
-            List<Integer> pathNodes = new ArrayList<>();
-            curr = uIdx;
-            while (curr != lca) {
-                pathNodes.add(curr);
-                curr = parent[curr];
-            }
-            curr = vIdx;
-            while (curr != lca) {
-                pathNodes.add(curr);
-                curr = parent[curr];
-            }
-            pathNodes.add(lca); // Tambahkan LCA sekali
+        for (String[] query : queries) {
+            int u = codeMap.get(query[0]);
+            int v = codeMap.get(query[1]);
 
-            // Hitung XOR dari jarak
-            int xorVal = 0;
-            for (int node : pathNodes) {
-                xorVal ^= dist[node];
-            }
+            // --- Cari LCA ---
+            int a = u, b = v;
+            while (depth[a] > depth[b]) a = lcaPar[a];
+            while (depth[b] > depth[a]) b = lcaPar[b];
+            while (a != b) { a = lcaPar[a]; b = lcaPar[b]; }
+            int lca = a;
 
-            // Evaluasi keprimaan hasil XOR
+            // --- Kumpulkan node pada jalur u → LCA → v ---
+            List<Integer> path = new ArrayList<>();
+            // u → LCA (termasuk kedua ujung)
+            int cur = u;
+            while (cur != lca) { path.add(cur); cur = lcaPar[cur]; }
+            path.add(lca);
+            // LCA → v  (LCA sudah ada, tambah sisa menuju v)
+            List<Integer> vSide = new ArrayList<>();
+            cur = v;
+            while (cur != lca) { vSide.add(cur); cur = lcaPar[cur]; }
+            Collections.reverse(vSide);
+            path.addAll(vSide);
+
+            // --- XOR semua dist pada jalur ---
+            long xorVal = 0;
+            for (int node : path) xorVal ^= dist[node];
+
+            // --- Klasifikasi ---
             if (xorVal == 0 || xorVal == 1) {
                 System.out.println("TRIVIAL: " + xorVal);
-            } else if (isPrime(xorVal)) {
+            } else if (xorVal > 1 && isPrime(xorVal)) {
                 System.out.println("PRIME: " + xorVal);
             } else {
                 System.out.println("COMPOSITE: " + xorVal);
             }
         }
-        sc.close();
     }
 
-    // ==========================================
-    // UTILITY METHODS
-    // ==========================================
-
-    // BFS untuk mencari diameter pohon (menghitung jumlah edge)
-    static int[] bfs(int start, int N, List<Integer>[] adj, boolean[] inTree) {
-        int[] edgeCount = new int[N];
-        Arrays.fill(edgeCount, -1);
+    // =========================================================================
+    // HELPER : BFS undirected (kembalikan array jarak dari start)
+    // =========================================================================
+    private int[] bfsUndir(int start, List<List<Integer>> adj) {
+        int n = adj.size();
+        int[] d = new int[n];
+        Arrays.fill(d, -1);
+        d[start] = 0;
         Queue<Integer> q = new LinkedList<>();
-        
         q.add(start);
-        edgeCount[start] = 0;
-        
-        int farthestNode = start;
-        int maxDist = 0;
-        
         while (!q.isEmpty()) {
-            int curr = q.poll();
-            for (int nxt : adj[curr]) {
-                if (edgeCount[nxt] == -1 && inTree[nxt]) {
-                    edgeCount[nxt] = edgeCount[curr] + 1;
-                    if (edgeCount[nxt] > maxDist) {
-                        maxDist = edgeCount[nxt];
-                        farthestNode = nxt;
-                    }
-                    q.add(nxt);
-                }
+            int cur = q.poll();
+            for (int nb : adj.get(cur)) {
+                if (d[nb] == -1) { d[nb] = d[cur] + 1; q.add(nb); }
             }
         }
-        return new int[]{farthestNode, maxDist};
+        return d;
     }
 
-    // DFS untuk mencari Centroid Decomposition Count
-    static void dfsCentroid(int u, int p, int totalNodes, List<Integer>[] adj, int[] subtreeSize, int[] centroidCount) {
-        subtreeSize[u] = 1;
-        int maxSubtree = 0;
-        for (int v : adj[u]) {
-            if (v == p) continue;
-            dfsCentroid(v, u, totalNodes, adj, subtreeSize, centroidCount);
-            subtreeSize[u] += subtreeSize[v];
-            maxSubtree = Math.max(maxSubtree, subtreeSize[v]);
-        }
-        // Bandingkan component terbesar termasuk parent component
-        maxSubtree = Math.max(maxSubtree, totalNodes - subtreeSize[u]);
-        
-        // Aturan centroid: semua komponen <= N/2
-        if (maxSubtree <= totalNodes / 2) {
-            centroidCount[0]++;
+    // =========================================================================
+    // HELPER : DFS untuk hitung ukuran subtree
+    // =========================================================================
+    private void computeSubtreeSize(int node, List<List<Integer>> ch, int[] sz) {
+        sz[node] = 1;
+        for (int child : ch.get(node)) {
+            computeSubtreeSize(child, ch, sz);
+            sz[node] += sz[child];
         }
     }
 
-    // Cek bilangan prima (bilangan <= 1 atau negatif otomatis direturn false)
-    static boolean isPrime(int n) {
-        if (n <= 1) return false;
-        if (n == 2 || n == 3) return true;
-        if (n % 2 == 0 || n % 3 == 0) return false;
-        for (int i = 5; i * i <= n; i += 6) {
-            if (n % i == 0 || n % (i + 2) == 0) return false;
+    // =========================================================================
+    // HELPER : Cek bilangan prima
+    // =========================================================================
+    private boolean isPrime(long n) {
+        if (n < 2) return false;
+        if (n == 2) return true;
+        if (n % 2 == 0) return false;
+        for (long i = 3; i * i <= n; i += 2) {
+            if (n % i == 0) return false;
         }
         return true;
     }

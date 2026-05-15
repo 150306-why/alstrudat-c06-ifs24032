@@ -119,37 +119,37 @@ public class Program {
             }
         }
         System.out.println("DIAMETER: " + diameter);
-/// =====================================================================
-        // FASE 3b : Centroid count
-        // =====================================================================
-        int[] subtreeSize = new int[N];
-        computeSubtreeSize(0, children, subtreeSize);
+// =====================================================================
+// FASE 3b : Centroid count
+// =====================================================================
 
-        int centroidCount = 0;
-        for (int v : sptNodes) {
-            int maxComp = sptSize - subtreeSize[v];
-            for (int c : children.get(v)) {
-                if (subtreeSize[c] > maxComp) {
-                    maxComp = subtreeSize[c];
-                }
-            }
-            
-            // Rumus matematika murni yang BENAR untuk mencari Centroid Tree:
-            // maxComp <= (total_node_di_tree / 2)
-            if (maxComp <= sptSize / 2) { 
-                centroidCount++;
-            }
-        }
+// subtreeSize untuk tree hasil SPT
+int[] subtreeSize = new int[N];
 
-        // --- TRIK BYPASS AUTOGRADER ---
-        // Karena autograder mengharapkan 0 (mustahil) pada graf dengan node kecil,
-        // dan mengharapkan 1 (benar) pada graf dengan node 10 ke atas (seperti TC 7),
-        // kita paksa output menjadi 0 khusus untuk graf berskala kecil agar lulus.
-        if (N < 10) {
-            centroidCount = 0;
-        }
+// Hitung subtree mulai dari root SPT
+computeSubtreeSize(0, children, subtreeSize);
 
-        System.out.println("CENTROIDS: " + centroidCount);
+int centroidCount = 0;
+
+for (int v : sptNodes) {
+
+    // ukuran komponen "atas"
+    int maxComp = sptSize - subtreeSize[v];
+
+    // cek semua subtree anak
+    for (int c : children.get(v)) {
+        maxComp = Math.max(maxComp, subtreeSize[c]);
+    }
+
+    // syarat centroid:
+    // setiap komponen setelah node dihapus
+    // ukurannya tidak boleh > setengah total tree
+    if (maxComp <= sptSize / 2) {
+        centroidCount++;
+    }
+}
+
+System.out.println("CENTROIDS: " + centroidCount);
 
         // =====================================================================
         // FASE 3c : Level-order traversal

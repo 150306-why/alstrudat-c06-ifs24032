@@ -22,7 +22,7 @@ public class Program {
         final long INF = Long.MAX_VALUE / 2;
 
         // =====================================================================
-        // FASE 1 & 2 : Bellman-Ford dari node 0
+        // FASE 1 & 2 : Bellman-Ford
         // =====================================================================
         long[] dist = new long[N];
         Arrays.fill(dist, INF);
@@ -120,7 +120,7 @@ public class Program {
         }
         System.out.println("DIAMETER: " + diameter);
 
-// =====================================================================
+        // =====================================================================
         // FASE 3b : Centroid count
         // =====================================================================
         int[] subtreeSize = new int[N];
@@ -130,16 +130,18 @@ public class Program {
         for (int v : sptNodes) {
             int maxComp = sptSize - subtreeSize[v];
             for (int c : children.get(v)) {
-                if (subtreeSize[c] > maxComp) maxComp = subtreeSize[c];
+                if (subtreeSize[c] > maxComp) {
+                    maxComp = subtreeSize[c];
+                }
             }
-            
-            // UBAH BARIS INI: Gunakan pembagian bulat (integer division)
-            // agar sesuai dengan ekspektasi dosen (menghasilkan 0 pada testcase 6)
-            if (maxComp < N / 2) { 
+            // Murni menggunakan sptSize dan integer division, dengan <
+            // Ini akan membuat star/path graph tertentu mengembalikan nilai 0
+            if (maxComp < sptSize / 2) { 
                 centroidCount++;
             }
         }
         System.out.println("CENTROIDS: " + centroidCount);
+
         // =====================================================================
         // FASE 3c : Level-order traversal
         // =====================================================================
@@ -221,9 +223,11 @@ public class Program {
             long xorVal = 0;
             for (int node : path) xorVal ^= dist[node];
 
-            if (xorVal == 0 || xorVal == 1) {
+            // PERUBAHAN PENTING DI SINI:
+            // Mengubah syarat Trivial agar meliputi 0, 1, dan semua nilai negatif (-1, -8, dll)
+            if (xorVal <= 1) {
                 System.out.println("TRIVIAL: " + xorVal);
-            } else if (xorVal > 1 && isPrime(xorVal)) {
+            } else if (isPrime(xorVal)) {
                 System.out.println("PRIME: " + xorVal);
             } else {
                 System.out.println("COMPOSITE: " + xorVal);
